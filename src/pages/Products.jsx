@@ -3,8 +3,10 @@ import { api } from '../api';
 import { Badge, Loader, Modal, PageHead, Pager, inr, usePaged } from '../components/ui';
 
 const CATS = ['Sneakers', 'T-Shirts', 'Shirts', 'Hoodies', 'Jackets', 'Trousers', 'Accessories'];
-const empty = { name: '', cat: CATS[0], price: '', mrp: '', stock: 0, badge: '', tagline: '', desc: '', material: '', fit: '', care: '',
-  sizes: '', colors: '', images: '', isNewArrival: false, isBest: false, isActive: true };
+const empty = {
+  name: '', cat: CATS[0], price: '', mrp: '', stock: 0, badge: '', tagline: '', desc: '', material: '', fit: '', care: '',
+  sizes: '', colors: '', images: '', isNewArrival: false, isBest: false, isActive: true
+};
 
 const toForm = (p) => ({ ...empty, ...p, sizes: (p.sizes || []).join(', '), colors: (p.colors || []).map((c) => `${c.n}:${c.h}`).join(', '), images: (p.images || []).join('\n') });
 const toBody = (f) => ({
@@ -68,13 +70,51 @@ function ProductModal({ product, onClose, onSaved }) {
   const [f, setF] = useState(toForm(product));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [uploading, setUploading] = useState(false); // New state for upload loading
+
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
+
+  // Handle Image Upload to Cloudinary
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    setUploading(true);
+    setErr('');
+    try {
+      const uploadedUrls = [];
+      for (const file of files) {
+        const res = await api.uploadImage(file);
+        uploadedUrls.push(res.url || res); // Handles both {url: '...'} and '...'
+      }
+
+      // Functional update to safely append new URLs
+      setF((prev) => {
+        const currentImages = prev.images ? prev.images + '\n' : '';
+        return { ...prev, images: currentImages + uploadedUrls.join('\n') };
+      });
+    } catch (x) {
+      setErr(x.message || 'Image upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = null; // Reset input
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
-    try { isEdit ? await api.updateProduct(product._id, toBody(f)) : await api.createProduct(toBody(f)); onSaved(); }
-    catch (x) { setErr(x.message); setBusy(false); }
+    try {
+      isEdit ? await api.updateProduct(product._id, toBody(f)) : await api.createProduct(toBody(f));
+      onSaved();
+    }
+    catch (x) {
+      setErr(x.message);
+      setBusy(false);
+    }
   };
+
   const T = (k, label, props = {}) => <div><label className="lbl">{label}</label><input className="inp" value={f[k]} onChange={set(k)} {...props} /></div>;
+
   return (
     <Modal wide title={isEdit ? 'Edit product' : 'New product'} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
@@ -92,13 +132,53 @@ function ProductModal({ product, onClose, onSaved }) {
         {T('care', 'Care instructions')}
         {T('sizes', 'Sizes (comma separated: S, M, L)')}
         {T('colors', 'Colors (name:#hex, comma separated — Deep Emerald:#0B3D2E, Black:#000000)')}
-        <div><label className="lbl">Image URLs (one per line)</label><textarea rows={3} className="inp" value={f.images} onChange={set('images')} /></div>
+
+        {/* --- UPDATED IMAGE UPLOAD SECTION --- */}
+        <div>
+          <label className="lbl">Product Images</label>
+
+          <div className="mb-2">
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploading}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 border border-gray-300 rounded-md cursor-pointer"
+            />
+            {uploading && <span className="text-sm text-blue-600 mt-1 block animate-pulse">Uploading images, please wait...</span>}
+          </div>
+
+          <textarea
+            rows={4}
+            className="inp text-xs"
+            value={f.images}
+            onChange={set('images')}
+            placeholder="Uploaded image URLs will appear here. You can also paste direct URLs."
+          />
+
+          {/* Image Previews */}
+          {f.images && (
+            <div className="flex gap-2 mt-2 overflow-x-auto py-1">
+              {f.images.split('\n').filter(Boolean).map((img, i) => (
+                <div key={i} className="w-12 h-14 flex-shrink-0 border border-line bg-ivory overflow-hidden">
+                  <img src={img} alt="preview" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* ------------------------------------ */}
+
         <div className="flex gap-6 text-sm">
           {[['isNewArrival', 'New arrival'], ['isBest', 'Bestseller'], ['isActive', 'Active (visible in store)']].map(([k, l]) =>
             <label key={k} className="flex items-center gap-2"><input type="checkbox" checked={f[k]} onChange={set(k)} />{l}</label>)}
         </div>
         {err && <div className="text-sm text-red-700">{err}</div>}
-        <div className="flex justify-end gap-2"><button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn" disabled={busy}>{busy ? 'Saving…' : 'Save product'}</button></div>
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn" disabled={busy || uploading}>{busy ? 'Saving…' : uploading ? 'Uploading...' : 'Save product'}</button>
+        </div>
       </form>
     </Modal>
   );

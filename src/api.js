@@ -28,4 +28,32 @@ export const api = {
   users: () => request('/users'),
   reviews: (productNumId) => request(`/products/${productNumId}/reviews`),
   deleteReview: (id) => request(`/reviews/${id}`, { method: 'DELETE' }),
+
+  // 🔥 NAYA FUNCTION: Image Upload (FormData handle karta hai)
+  uploadImage: async (file) => {
+    const formData = new FormData();
+    // Make sure 'image' matches the field name in your multer config: upload.single('image')
+    formData.append('image', file);
+
+    const res = await fetch(BASE + '/upload', {
+      method: 'POST',
+      headers: {
+        // ⚠️ 'Content-Type': 'multipart/form-data' mat lagana, browser khud set karega with boundary
+        ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+      },
+      body: formData,
+    });
+
+    const json = await res.json().catch(() => ({}));
+
+    if (res.status === 401 && getToken()) {
+      localStorage.removeItem('admin_token');
+      window.location.href = '/login';
+    }
+
+    if (!res.ok) throw new Error(json.message || 'Image upload failed');
+
+    // Aapke ApiResponse format ke hisaab se, data.data me url aayega
+    return json.data;
+  },
 };
