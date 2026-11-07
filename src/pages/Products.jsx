@@ -8,27 +8,41 @@ const empty = {
   sizes: '', colors: '', images: '', isNewArrival: false, isBest: false, isActive: true
 };
 
-const toForm = (p) => ({ ...empty, ...p, sizes: (p.sizes || []).join(', '), colors: (p.colors || []).map((c) => `${c.n}:${c.h}`).join(', '), images: (p.images || []).join('\n') });
+const toForm = (p) => ({
+  ...empty,
+  ...p,
+  sizes: (p.sizes || []).join(', '),
+  colors: (p.colors || []).map((c) => `${c.n}:${c.h}`).join(', '),
+  images: (p.images || []).join('\n')
+});
+
 const toBody = (f) => ({
-  name: f.name, cat: f.cat, price: +f.price, mrp: +f.mrp, stock: +f.stock, badge: f.badge, tagline: f.tagline, desc: f.desc,
-  material: f.material, fit: f.fit, care: f.care, isNewArrival: f.isNewArrival, isBest: f.isBest, isActive: f.isActive,
+  name: f.name, cat: f.cat, price: +f.price, mrp: +f.mrp, stock: +f.stock,
+  badge: f.badge, tagline: f.tagline, desc: f.desc,
+  material: f.material, fit: f.fit, care: f.care,
+  isNewArrival: f.isNewArrival, isBest: f.isBest, isActive: f.isActive,
   sizes: f.sizes.split(',').map((s) => s.trim()).filter(Boolean),
-  colors: f.colors.split(',').map((s) => s.trim()).filter(Boolean).map((s) => { const [n, h] = s.split(':'); return { n: n.trim(), h: (h || '#000000').trim() }; }),
+  colors: f.colors.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
+    const [n, h] = s.split(':');
+    return { n: n.trim(), h: (h || '#000000').trim() };
+  }),
   images: f.images.split('\n').map((s) => s.trim()).filter(Boolean),
 });
+
 
 export default function Products() {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
-  const [edit, setEdit] = useState(null); // null | {} (new) | product
+  const [edit, setEdit] = useState(null);
 
   const load = () => api.products().then((d) => setItems(d.items)).catch((e) => setErr(e.message));
   useEffect(() => { load(); }, []);
 
   const list = (items || []).filter((p) => (!cat || p.cat === cat) && `${p.name} ${p.cat}`.toLowerCase().includes(q.toLowerCase()));
   const pg = usePaged(list);
+
   const del = async (p) => {
     if (!confirm(`Delete "${p.name}"?`)) return;
     try { await api.deleteProduct(p._id); load(); } catch (e) { alert(e.message); }
@@ -40,24 +54,43 @@ export default function Products() {
     <>
       <PageHead title="Products">
         <input className="inp !w-52" placeholder="Search products" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="inp !w-40" value={cat} onChange={(e) => setCat(e.target.value)}><option value="">All categories</option>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+        <select className="inp !w-40" value={cat} onChange={(e) => setCat(e.target.value)}>
+          <option value="">All categories</option>
+          {CATS.map((c) => <option key={c}>{c}</option>)}
+        </select>
         <button className="btn" onClick={() => setEdit({})}>+ Add product</button>
       </PageHead>
       <div className="card overflow-x-auto">
-        <table className="w-full"><thead><tr>{['', 'Name', 'Category', 'Price', 'Stock', 'Flags', ''].map((h, i) => <th key={i} className="th">{h}</th>)}</tr></thead>
-          <tbody>{pg.rows.map((p) => (
-            <tr key={p._id}>
-              <td className="td"><div className="w-10 h-12 bg-ivory border border-line overflow-hidden">{p.images?.[0] && <img src={p.images[0]} alt="" className="w-full h-full object-cover" />}</div></td>
-              <td className="td font-medium">{p.name}<div className="text-xs text-ink/50">#{p.id}</div></td>
-              <td className="td">{p.cat}</td>
-              <td className="td">{inr(p.price)}<div className="text-xs text-ink/40 line-through">{inr(p.mrp)}</div></td>
-              <td className={`td ${p.stock < 10 ? 'text-red-700 font-semibold' : ''}`}>{p.stock}</td>
-              <td className="td space-x-1">{p.isBest && <Badge v="best" />}{p.isNewArrival && <Badge v="new" />}</td>
-              <td className="td whitespace-nowrap space-x-2">
-                <button className="btn btn-ghost !py-1" onClick={() => setEdit(p)}>Edit</button>
-                <button className="btn btn-danger !py-1" onClick={() => del(p)}>Delete</button></td>
-            </tr>))}
-            {!pg.rows.length && <tr><td className="td text-center text-ink/50" colSpan={7}>No products</td></tr>}</tbody></table>
+        <table className="w-full">
+          <thead>
+            <tr>
+              {['', 'Name', 'Category', 'Price', 'Stock', 'Flags', ''].map((h, i) => <th key={i} className="th">{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {pg.rows.map((p) => (
+              <tr key={p._id}>
+                <td className="td">
+                  <div className="w-10 h-12 bg-ivory border border-line overflow-hidden">
+                    {p.images?.[0] && <img src={p.images[0]} alt="" className="w-full h-full object-cover" />}
+                  </div>
+                </td>
+                <td className="td font-medium">{p.name}<div className="text-xs text-ink/50">#{p.id}</div></td>
+                <td className="td">{p.cat}</td>
+                <td className="td">{inr(p.price)}<div className="text-xs text-ink/40 line-through">{inr(p.mrp)}</div></td>
+                <td className={`td ${p.stock < 10 ? 'text-red-700 font-semibold' : ''}`}>{p.stock}</td>
+                <td className="td space-x-1">
+                  {p.isBest && <Badge v="best" />}{p.isNewArrival && <Badge v="new" />}
+                </td>
+                <td className="td whitespace-nowrap space-x-2">
+                  <button className="btn btn-ghost !py-1" onClick={() => setEdit(p)}>Edit</button>
+                  <button className="btn btn-danger !py-1" onClick={() => del(p)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+            {!pg.rows.length && <tr><td className="td text-center text-ink/50" colSpan={7}>No products</td></tr>}
+          </tbody>
+        </table>
         <Pager {...pg} />
       </div>
       {edit && <ProductModal product={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
@@ -70,9 +103,20 @@ function ProductModal({ product, onClose, onSaved }) {
   const [f, setF] = useState(toForm(product));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [uploading, setUploading] = useState(false); // New state for upload loading
+  const [uploading, setUploading] = useState(false);
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
+
+  // Convert `images` text into array for preview
+  const imageList = f.images
+    ? f.images.split('\n').map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  // Remove a single image by index
+  const removeImage = (indexToRemove) => {
+    const updated = imageList.filter((_, i) => i !== indexToRemove);
+    setF((prev) => ({ ...prev, images: updated.join('\n') }));
+  };
 
   // Handle Image Upload to Cloudinary
   const handleImageUpload = async (e) => {
@@ -85,10 +129,8 @@ function ProductModal({ product, onClose, onSaved }) {
       const uploadedUrls = [];
       for (const file of files) {
         const res = await api.uploadImage(file);
-        uploadedUrls.push(res.url || res); // Handles both {url: '...'} and '...'
+        uploadedUrls.push(res.url || res);
       }
-
-      // Functional update to safely append new URLs
       setF((prev) => {
         const currentImages = prev.images ? prev.images + '\n' : '';
         return { ...prev, images: currentImages + uploadedUrls.join('\n') };
@@ -97,46 +139,62 @@ function ProductModal({ product, onClose, onSaved }) {
       setErr(x.message || 'Image upload failed');
     } finally {
       setUploading(false);
-      e.target.value = null; // Reset input
+      e.target.value = null;
     }
   };
 
   const submit = async (e) => {
-    e.preventDefault(); setBusy(true); setErr('');
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
     try {
       isEdit ? await api.updateProduct(product._id, toBody(f)) : await api.createProduct(toBody(f));
       onSaved();
-    }
-    catch (x) {
+    } catch (x) {
       setErr(x.message);
       setBusy(false);
     }
   };
 
-  const T = (k, label, props = {}) => <div><label className="lbl">{label}</label><input className="inp" value={f[k]} onChange={set(k)} {...props} /></div>;
+  const T = (k, label, props = {}) => (
+    <div>
+      <label className="lbl">{label}</label>
+      <input className="inp" value={f[k]} onChange={set(k)} {...props} />
+    </div>
+  );
 
   return (
     <Modal wide title={isEdit ? 'Edit product' : 'New product'} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid sm:grid-cols-2 gap-4">
           {T('name', 'Name', { required: true })}
-          <div><label className="lbl">Category</label><select className="inp" value={f.cat} onChange={set('cat')}>{CATS.map((c) => <option key={c}>{c}</option>)}</select></div>
+          <div>
+            <label className="lbl">Category</label>
+            <select className="inp" value={f.cat} onChange={set('cat')}>
+              {CATS.map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </div>
           {T('price', 'Price (₹)', { type: 'number', min: 0, required: true })}
           {T('mrp', 'MRP (₹)', { type: 'number', min: 0, required: true })}
           {T('stock', 'Stock', { type: 'number', min: 0 })}
           {T('badge', 'Badge (BESTSELLER / NEW / LIMITED)')}
-          {T('material', 'Material')}{T('fit', 'Fit')}
+          {T('material', 'Material')}
+          {T('fit', 'Fit')}
         </div>
         {T('tagline', 'Tagline')}
-        <div><label className="lbl">Description</label><textarea rows={3} className="inp" value={f.desc} onChange={set('desc')} /></div>
+        <div>
+          <label className="lbl">Description</label>
+          <textarea rows={3} className="inp" value={f.desc} onChange={set('desc')} />
+        </div>
         {T('care', 'Care instructions')}
         {T('sizes', 'Sizes (comma separated: S, M, L)')}
         {T('colors', 'Colors (name:#hex, comma separated — Deep Emerald:#0B3D2E, Black:#000000)')}
 
-        {/* --- UPDATED IMAGE UPLOAD SECTION --- */}
+        {/* ============ IMAGE UPLOAD SECTION ============ */}
         <div>
           <label className="lbl">Product Images</label>
 
+          {/* File Input */}
           <div className="mb-2">
             <input
               type="file"
@@ -146,38 +204,77 @@ function ProductModal({ product, onClose, onSaved }) {
               disabled={uploading}
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 border border-gray-300 rounded-md cursor-pointer"
             />
-            {uploading && <span className="text-sm text-blue-600 mt-1 block animate-pulse">Uploading images, please wait...</span>}
+            {uploading && (
+              <span className="text-sm text-blue-600 mt-1 block animate-pulse">
+                Uploading images, please wait...
+              </span>
+            )}
           </div>
 
+          {/* URL Textarea */}
           <textarea
-            rows={4}
+            rows={3}
             className="inp text-xs"
             value={f.images}
             onChange={set('images')}
             placeholder="Uploaded image URLs will appear here. You can also paste direct URLs."
           />
 
-          {/* Image Previews */}
-          {f.images && (
-            <div className="flex gap-2 mt-2 overflow-x-auto py-1">
-              {f.images.split('\n').filter(Boolean).map((img, i) => (
-                <div key={i} className="w-12 h-14 flex-shrink-0 border border-line bg-ivory overflow-hidden">
-                  <img src={img} alt="preview" className="w-full h-full object-cover" />
+          {/* Image Previews with Remove Button */}
+          {imageList.length > 0 && (
+            <div className="flex gap-3 mt-3 flex-wrap">
+              {imageList.map((img, i) => (
+                <div
+                  key={`${img}-${i}`}
+                  className="relative w-20 h-24 border border-line bg-ivory overflow-hidden rounded-md group"
+                >
+                  <img
+                    src={img}
+                    alt={`preview-${i + 1}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/80x96?text=Invalid';
+                    }}
+                  />
+                  {/* Remove Button */}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-1 right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                    title="Remove image"
+                  >
+                    ×
+                  </button>
+                  {/* Image Index Badge */}
+                  <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                    {i === 0 ? 'Main' : `#${i + 1}`}
+                  </span>
                 </div>
               ))}
             </div>
           )}
+
+          {imageList.length === 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              No images yet. Upload files above or paste URLs in the textarea.
+            </p>
+          )}
         </div>
-        {/* ------------------------------------ */}
+        {/* ========== END IMAGE UPLOAD SECTION ========== */}
 
         <div className="flex gap-6 text-sm">
           {[['isNewArrival', 'New arrival'], ['isBest', 'Bestseller'], ['isActive', 'Active (visible in store)']].map(([k, l]) =>
-            <label key={k} className="flex items-center gap-2"><input type="checkbox" checked={f[k]} onChange={set(k)} />{l}</label>)}
+            <label key={k} className="flex items-center gap-2">
+              <input type="checkbox" checked={f[k]} onChange={set(k)} />{l}
+            </label>
+          )}
         </div>
         {err && <div className="text-sm text-red-700">{err}</div>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn" disabled={busy || uploading}>{busy ? 'Saving…' : uploading ? 'Uploading...' : 'Save product'}</button>
+          <button className="btn" disabled={busy || uploading}>
+            {busy ? 'Saving…' : uploading ? 'Uploading...' : 'Save product'}
+          </button>
         </div>
       </form>
     </Modal>
